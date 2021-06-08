@@ -1,0 +1,410 @@
+.script_flashing: !include &flashing libraries/scripts/flashing.yaml
+
+substitutions:
+  name: raindetector
+  friendly_name: "Rain Detector"
+  resistor_value: "9.868kOhm"
+
+  # TODO: Handle case where resistance higher than max_resistance
+
+  # Skip the value not in the range
+  min_resistance: "1000"
+  max_resistance: "500000"
+
+  # Value of the resistance at which a significant change is considered
+  # to occur
+  rain_detection_threshold: "4000"
+ 
+  # If the resistance increases by this value, the sensor is considered
+  # to be dry
+  dry_detection_threshold: "4000"
+
+  # When booting, if the resistance is lower this value, assume sensor is wet
+  wet_resistance_when_booting: "50000"
+
+  # +------------------------------+
+  # | Delay between 2 rain measure |
+  # +------------------------------+
+  # In dry mode
+  measure_interval_dry: "5000"
+
+  # In wet mode
+  # Must be large enough not to damage the tracks prematurely
+  # but small enough to be reactive enough.
+  measure_interval_wet: "30000"
+
+  # Stabilization before reading the resistance
+  # A too short delay will not allow to read the low resistances
+  stabilization_delay: 2sec
+
+esphome:
+  name: $name
+  platform: ESP32
+  board: esp32dev
+  on_boot:
+    then:
+      - script.execute: test_resistance
+      - script.execute: measure_loop
+      - script.execute: flashing
+
+<<: !include network.yaml
+
+captive_portal:
+
+ota:
+  password: !secret password
+
+api:
+  password: !secret password
+
+# Enable logging
+#logger:
+#    level: INFO
+
+mqtt:
+  broker: !secret mqtt_host
+  username: !secret mqtt_user
+  password: !secret mqtt_pass
+
+i2c:
+  frequency: 50kHz
+  sda: GPIO26
+  scl: GPIO25
+
+globals:
+  - id: measure_delay
+    type: int
+    restore_value: yes
+    initial_value: $measure_interval_dry
+
+script:
+  - <<: *flashing
+
+  - id: begin_measure
+    mode: single
+    then:
+      - switch.turn_on: resistance_bias
+      - delay: $stabilization_delay
+
+  - id: end_measure
+    mode: single
+    then:
+      - switch.turn_off: resistance_bias
+
+  - id: test_resistance
+    mode: single
+    then:
+      - script.execute: begin_measure
+      - script.wait: begin_measure
+
+      - if:
+          condition:
+            lambda: "return id(resistance_sensor).state < $wet_resistance_when_booting;"
+          then:
+            - script.execute: its_raining
+
+      - script.execute: end_measure
+      - script.wait: end_measure
+
+  - id: save_current_resistance
+    then:
+      - sensor.template.publish:
+          id: latest_resistance_sensor
+          state: !lambda "return id(resistance_sensor).state;"
+      - sensor.template.publish:
+          id: latest_average_resistance_sensor
+          state: !lambda "return id(average_resistance_sensor).state;"
+
+  # Currently:
+  # * Rain is detected with the most recent value compared to a threshold
+  # * To detect when it dries, we use the average
+
+  # To be tested:
+  # The lowest resistance that corresponds to a complete saturation
+  # of the sensor is permanently recorded: If this value is not reached
+  # but the resistance does not decrease during a period of time,
+  # we know that it is not raining anymore.
+
+  - id: update_average_values
+    mode: single
+    then:
+      # Set the average resistance
+      - if:
+          condition:
+            lambda: "return (id(resistance_sensor).state >= 0 && id(resistance_sensor).state <= $max_resistance);"
+          then:
+            - sensor.template.publish:
+                id: average_resistance_sensor
+                state: !lambda "return id(resistance_sensor).state;"
+
+  - id: measure
+    mode: single
+    then:
+      - script.execute: begin_measure
+      - script.wait: begin_measure
+
+      # Init latest resistance value if not a number
+      - if:
+          condition:
+            lambda: "return isnan(id(latest_resistance_sensor).state);"
+          then:
+            - script.execute: save_current_resistance
+            - script.wait: save_current_resistance
+      - if:
+          condition:
+            lambda: "return isnan(id(latest_average_resistance_sensor).state);"
+          then:
+            - script.execute: save_current_resistance
+            - script.wait: save_current_resistance
+
+      # For debug purpose only
+      - logger.log:
+          level: INFO
+          format: "> Resistance: %.1f vs latest resistance: %.1f"
+          args: ['id(resistance_sensor).state', 'id(latest_resistance_sensor).state']
+
+      - script.execute: update_average_values
+
+      # Test for raining
+      - if:
+          condition:
+            lambda: "return id(resistance_sensor).state + $rain_detection_threshold < id(latest_resistance_sensor).state;"
+          then:
+            - script.execute: its_raining
+
+      # Test for drying
+      - if:
+          condition:
+            lambda: "return id(average_resistance_sensor).state - $dry_detection_threshold > id(latest_average_resistance_sensor).state;"
+          then:
+            - script.execute: its_drying
+
+      # Test for dry
+      # We assume sensor is dry when current resistance == max resistance
+      - if:
+          condition:
+            lambda: "return id(resistance_sensor).state == $max_resistance;"
+          then:
+            - script.execute: its_dry
+
+      - script.execute: end_measure
+      - script.wait: end_measure
+
+  - id: measure_loop
+    mode: single
+    then:
+      - while:
+          condition:
+            lambda: "return true;"
+          then:
+            - logger.log:
+                format: "[Start measure]"
+                level: INFO
+            - script.execute: measure
+            - script.wait: measure
+            - delay: !lambda "return id(measure_delay);"
+
+  - id: its_raining
+    mode: single
+    then:
+      - logger.log: "It's raining !"
+      - script.execute: save_current_resistance
+      - script.wait: save_current_resistance
+      - homeassistant.event:
+          event: esphome.its_raining
+      - text_sensor.template.publish:
+          id: text_status
+          state: "Raining"
+      - binary_sensor.template.publish:
+          id: raining
+          state: on
+      - binary_sensor.template.publish:
+          id: drying
+          state: off
+      - globals.set:
+          id: measure_delay
+          value: $measure_interval_wet
+
+  - id: its_drying
+    mode: single
+    then:
+      - logger.log: "It's drying !"
+      - script.execute: save_current_resistance
+      - script.wait: save_current_resistance
+      - text_sensor.template.publish:
+          id: text_status
+          state: "Drying"
+      - binary_sensor.template.publish:
+          id: raining
+          state: off
+      - binary_sensor.template.publish:
+          id: drying
+          state: on
+      - globals.set:
+          id: measure_delay
+          value: $measure_interval_wet
+
+  - id: its_dry
+    mode: single
+    then:
+      - logger.log: "It's dry !"
+      - script.execute: save_current_resistance
+      - script.wait: save_current_resistance
+      - text_sensor.template.publish:
+          id: text_status
+          state: "Dry"
+      - binary_sensor.template.publish:
+          id: raining
+          state: off
+      - binary_sensor.template.publish:
+          id: drying
+          state: off
+      - globals.set:
+          id: measure_delay
+          value: $measure_interval_dry
+
+text_sensor:
+  - platform: template
+    id: text_status
+    name: "${friendly_name} text status"
+    lambda: |-
+      return {"Watching"};
+
+binary_sensor:
+  - platform: template
+    id: raining
+    name: "${friendly_name} raining"
+    device_class: moisture
+
+  - platform: template
+    id: drying
+    name: "${friendly_name} drying"
+    device_class: moisture
+
+sensor:
+  - platform: adc
+    id: source_sensor
+    pin: GPIO33
+    name: ADC
+    attenuation: 11db
+    internal: true
+
+    # It is important to have a low update interval so that
+    # the measurement has time to be done correctly during
+    # the activation of the voltage AND taking into account the median filter
+    update_interval: 250ms
+
+    filters:
+      - multiply: 0.846153 # 3.9 (11db attenuation full-scale voltage) -> 3.3V
+      - median:
+          window_size: 7
+          send_every: 4
+          send_first_at: 3
+
+  - platform: resistance
+    sensor: source_sensor
+    id: real_resistance_sensor
+    #name: "${friendly_name} resistance"
+    configuration: DOWNSTREAM
+    resistor: $resistor_value
+    reference_voltage: 3.3V
+    internal: true
+    icon: "mdi:omega"
+    filters:
+      # No value lower than 0
+      - lambda: 'return max((float)$min_resistance, x);'
+      # No value greater than $max_resistance
+      - lambda: 'return min((float)$max_resistance, x);'
+    on_value:
+      then:
+        - if:
+            condition:
+              lambda: |-
+                  return (
+                      id(real_resistance_sensor).state > $min_resistance
+                      &&
+                      // <= is important to force the resistance to the max
+                      // in order to have a value to compare if the
+                      // resistance drops
+                      id(real_resistance_sensor).state <= $max_resistance
+                  );
+            then:
+              - sensor.template.publish:
+                  id: resistance_sensor
+                  state: !lambda "return id(real_resistance_sensor).state;"
+
+  - platform: template
+    id: latest_resistance_sensor
+    name: "${friendly_name} latest resistance"
+    icon: "mdi:omega"
+    unit_of_measurement: 'Ω'
+
+  - platform: template
+    id: latest_average_resistance_sensor
+    name: "${friendly_name} latest average resistance"
+    icon: "mdi:omega"
+    unit_of_measurement: 'Ω'
+
+  - platform: template
+    id: resistance_sensor
+    name: "${friendly_name} resistance"
+    icon: "mdi:omega"
+    unit_of_measurement: 'Ω'
+
+  - platform: template
+    id: average_resistance_sensor
+    name: "${friendly_name} average resistance"
+    icon: "mdi:omega"
+    unit_of_measurement: 'Ω'
+    filters:
+      - sliding_window_moving_average:
+          window_size: 15
+          send_every: 15
+      #- heartbeat: 2min
+
+  - platform: bme280
+    address: 0x76
+    update_interval: 60s
+    iir_filter: 16x
+    temperature:
+      name: "${friendly_name} temperature"
+      id: bme280_temperature
+      oversampling: 16x
+    pressure:
+      name: "${friendly_name} pressure"
+      id: bme280_pressure
+      oversampling: 16x
+    humidity:
+      name: "${friendly_name} humidity"
+      id: bme280_humidity
+      oversampling: 16x
+      filters:
+        - median:
+            window_size: 7
+            send_every: 4
+            send_first_at: 3
+
+switch:
+  - platform: template
+    id: run_measure
+    name: "${friendly_name} run measure"
+    turn_on_action:
+    - script.execute: measure
+
+  - platform: gpio
+    id: resistance_bias
+    name: "${friendly_name} resistance bias"
+    icon: "mdi:power"
+    pin:
+      number: GPIO19
+      mode: OUTPUT
+
+light:
+  - platform: fastled_clockless
+    chipset: WS2812
+    id: status_light
+    name: "${friendly_name} status light"
+    pin: GPIO18
+    num_leds: 1
+    rgb_order: GRB
+    restore_mode: ALWAYS_OFF
