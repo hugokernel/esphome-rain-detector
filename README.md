@@ -52,6 +52,7 @@ In order to install the firmware on the ESP32, I invite you to follow the proced
 The sensor used comes from a rain detection kit easily found on line whose photo is below.
 
 ![Photo of the sensor](images/sensor.png)
+\
 After 6 months out, the trails are in pretty good shape.
 
 The kit has 1 input for the sensor, 1 potentiometer to adjust the threshold, 2 LEDs and 2 outputs: one analog and one digital.

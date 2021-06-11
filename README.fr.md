@@ -51,6 +51,7 @@ Afin d'installer le firmware sur l'ESP32, je vous invite à suivre la démarche 
 Le capteur utilisé provient d'un kit de détection de pluie facilement trouvable en ligne dont la photo est ci-dessous.
 
 ![Photo du capteur](images/sensor.png)
+\
 Après 6 mois dehors, les pistes sont plutôt en bon état.
 
 Le kit comporte 1 entrée pour le capteur, 1 potentiomètre de réglage du seuil, 2 LED et 2 sorties: une analogique et une numérique.
