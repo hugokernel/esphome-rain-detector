@@ -6,6 +6,9 @@ Read this in other language: [English](README.md)
 
 ## Présentation
 
+Précision: Cet appareil sert à détecter au plus tôt une averse afin de déclencher des actions. Le but n'est pas de mesurer la quantité de
+précipitation sur une période donnée (préférez utiliser un système à godet basculant).
+
 Suite au développement de la [station météo à base d'ESPHome](https://github.com/hugokernel/esphome-weather-station), j'ai souhaité
 avoir un système permettant de détecter le plus rapidement possible une averse afin de pouvoir déclencher des automations dans Home Assistant,
 notamment celle utilisée conjointement avec le capteur d'ouverture de fenêtre de toit.

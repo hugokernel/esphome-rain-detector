@@ -6,6 +6,9 @@ Read this in other language: [French](README.fr.md)
 
 ## Presentation
 
+Disclaimer: This device is used to detect rainfall as early as possible in order to trigger actions. The purpose is not to measure the amount of
+precipitation over a given period of time (prefer to use a balancing bucket system).
+
 Following the development of the [ESPHome-based weather station](https://github.com/hugokernel/esphome-weather-station),
 I wanted to have a system that would to have a system allowing to detect as soon as possible a rainfall in order to trigger automations in Home Assistant,
 especially the one used in conjunction with the roof window opening sensor.
