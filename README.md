@@ -24,7 +24,7 @@ we will be able to limit the this.
 
 ## Features
 
-* Adjustable rain detection attempt (default 5 seconds)
+* Adjustable rain detection attempt interval (default 5 seconds)
 * Temperature / relative humidity / air pressure measurement
 * RGB status LED based on WS2812
 * Low cost
@@ -34,7 +34,8 @@ we will be able to limit the this.
   * [The list is long](https://esphome.io/)
 
 As you can see on the introduction picture, the module is installed in a waterproof box (whose screws have completely oxidized despite everything)
-attached to the end of a mast hung on the top of the weather station but the device is totally independent and could have been installed somewhere else.
+attached to the end of a mast on top of the weather station. attached to the top of the weather station but the device is totally independent
+and could have been installed elsewhere.
 
 ### Installation
 
@@ -42,7 +43,7 @@ In order to install the firmware on the ESP32, I invite you to follow the proced
 
 ### Ideas for improvement
 
-* Put the ESP on standby between 2 measurements
+* Reduce consumption by putting the ESP on standby between two measurements
 
 ## Explanations
 
@@ -51,6 +52,7 @@ In order to install the firmware on the ESP32, I invite you to follow the proced
 The sensor used comes from a rain detection kit easily found on line whose photo is below.
 
 ![Photo of the sensor](images/sensor.png)
+After 6 months out, the trails are in pretty good shape.
 
 The kit has 1 input for the sensor, 1 potentiometer to adjust the threshold, 2 LEDs and 2 outputs: one analog and one digital.
 

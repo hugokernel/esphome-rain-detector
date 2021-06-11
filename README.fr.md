@@ -8,14 +8,14 @@ Read this in other language: [English](README.md)
 
 Suite au développement de la [station météo à base d'ESPHome](https://github.com/hugokernel/esphome-weather-station), j'ai souhaité
 avoir un système permettant de détecter le plus rapidement possible une averse afin de pouvoir déclencher des automations dans Home Assistant,
-notamment celle utilisé conjointement avec le capteur d'ouverture de fenêtre de toit.
+notamment celle utilisée conjointement avec le capteur d'ouverture de fenêtre de toit.
 
 La station météo embarque bien un capteur de pluie mais il s'agit d'un dispositif de mesure de précipitations.
-Il fonctionne via le remplissage de coupelle calibrée montée sur un balancier et le temps qu'une première coupelle soit remplie afin de faire
+Il fonctionne via le remplissage de coupelles calibrées montées sur un balancier et le temps qu'une première coupelle soit remplie afin de faire
 basculer le dispositif, il a déjà plu l'équivalent de 0.2794mm: c'est déjà trop tard.
 
 J'ai imaginé pas mal de chose avant de partir sur la voie la plus simple: Mesurer la résistance entre 2 conducteurs séparés de quelques millimètres
-dans l'espoir de détecter une goutte d'eau qui se serait posé à cheval entre les 2.
+dans l'espoir de détecter une goutte d'eau qui se serait posée à cheval entre les 2.
 
 Cette technique à le mérite d'être simple mais pose toutefois quelques problèmes dont le plus gros est la corrosion des éléments conducteurs, mais en
 s'y prenant correctement, on va pouvoir limiter la casse.
@@ -24,7 +24,7 @@ s'y prenant correctement, on va pouvoir limiter la casse.
 
 ### Caractéristiques
 
-* Tentative de détection de la pluie réglable (5 secondes par défaut)
+* Intervalle de tentatives de détection de la pluie réglable (5 secondes par défaut)
 * Mesure de la température / humidité relative / pression atmosphérique
 * Led de statut RGB à base de WS2812
 * Coût modeste
@@ -34,7 +34,7 @@ s'y prenant correctement, on va pouvoir limiter la casse.
   * [La liste est longue](https://esphome.io/)
 
 Comme on peut le voir sur la photo d'introduction, le module est installé dans une boitier étanche (dont les vis se sont complètement oxydées malgré tout) attaché au bout
-d'un mat accroché tout en haut de la station météo mais le dispositif est totalement indépendant et aurait pu être installé autre part.
+d'un mat tout en haut de la station météo mais le dispositif est totalement indépendant et aurait pu être installé autre part.
 
 ### Installation
 
@@ -42,7 +42,7 @@ Afin d'installer le firmware sur l'ESP32, je vous invite à suivre la démarche 
 
 ### Pistes d'améliorations
 
-* Mettre en veille l'ESP entre 2 mesures
+* Faire chuter la consommation en mettant en veille l'ESP entre 2 mesures
 
 ## Explications
 
@@ -51,6 +51,7 @@ Afin d'installer le firmware sur l'ESP32, je vous invite à suivre la démarche 
 Le capteur utilisé provient d'un kit de détection de pluie facilement trouvable en ligne dont la photo est ci-dessous.
 
 ![Photo du capteur](images/sensor.png)
+Après 6 mois dehors, les pistes sont plutôt en bon état.
 
 Le kit comporte 1 entrée pour le capteur, 1 potentiomètre de réglage du seuil, 2 LED et 2 sorties: une analogique et une numérique.
 
@@ -66,11 +67,11 @@ Cycle:
 * Par défaut, à sec, la résistance est très élévée.
 * Lorsque le capteur est détecté comme sec, toutes les 5 secondes (variable `$measure_interval_dry`), une mesure est réalisée et moyennée, si la valeur + le seuil de détection de pluie (`$rain_detection_threshold`)
 est inférieur à la dernière mesure réalisée, alors, on considère qu'il pleut (ou neige).
-* Dans le cas ou la résistance moyenne du capteur moins le seuil de détection sec `$dry_detection_threshold` devient supérieur à la dernière valeur lue, on considère que le capteur est en train de sécher.
+* Dans le cas ou la résistance moyenne du capteur moins le seuil de détection sec `$dry_detection_threshold` devient supérieure à la dernière valeur lue, on considère que le capteur est en train de sécher.
 
 Il y a pas mal de variable de configuration qui permettent de configurer le tout.
 
-Note: Pour le cas de la neige, les seuils ne sont peut être pas les même et il est peut être possible de distinguer la pluie de la neige
+Note: Pour le cas de la neige, les seuils ne sont peut être pas les même et il est peut être possible de distinguer la pluie de la neige.
 
 Au niveau de la configuration ESPHome, le tout est principalement articulé autour de 3 déclarations:
 
