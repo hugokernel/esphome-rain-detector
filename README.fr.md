@@ -141,6 +141,9 @@ switch:
       mode: OUTPUT
 ```
 
+#### Schéma de raccordement du capteur de détection de pluie
+![Schéma de raccordement du capteur de détection de pluie](images/circuit_rain_detector.png)
+
 ### Mesure de température / humidité / pression atmosphérique
 
 J'ai repris exactement la même configuration que pour la [station météo](https://github.com/hugokernel/esphome-weather-station).
