@@ -141,6 +141,9 @@ switch:
       mode: OUTPUT
 ```
 
+#### Diagram for connecting the rain detection sensor
+![Diagram for connecting the rain detection sensor](images/circuit_rain_detector.png)
+
 ### Temperature / humidity / air pressure measurement
 
 I used exactly the same configuration as for the [weather station](https://github.com/hugokernel/esphome-weather-station).
